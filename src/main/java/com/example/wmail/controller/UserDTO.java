@@ -9,8 +9,7 @@ public class UserDTO {
 	public UserDTO(User user) {
 		this.username = user.getName();
 		this.emailAdress = user.getEmailAdress();
-
+		this.id = user.getId();
 		this.caixaDeEntrada = new CaixaDeEntradaDTO(user.getCaixaDeEntrada());
 	}
-
 }

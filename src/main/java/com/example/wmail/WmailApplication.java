@@ -75,5 +75,4 @@ public class WmailApplication {
 		Email email = new Email(user.getName(), destinatario, assunto, conteudo);
 		user.getCaixaDeEntrada().escreveEmail(email);
 	}
-
 }
