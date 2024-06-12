@@ -1,19 +1,22 @@
 package com.example.wmail.controller;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class CaixaDeEntradaDTO {
 	public String emailAdress;
-	public ArrayList<EmailDTO> emailsEnviados = new ArrayList<>();
-	public ArrayList<EmailDTO> emailsRecebidos = new ArrayList<>();
+	public List<EmailDTO> emailsEnviados = new ArrayList<>();
+	public List<EmailDTO> emailsRecebidos = new ArrayList<>();
+	public List<EmailDTO> respostas = new ArrayList<>();
 
 	public CaixaDeEntradaDTO(CaixaDeEntrada caixaDeEntrada) {
-		this.emailAdress = caixaDeEntrada.getEmailAdress();
+		this.emailAdress = caixaDeEntrada.getEmailAddress();
 		this.emailsEnviados = converteListaDeEmails(caixaDeEntrada.obtemEmailsEnviados());
 		this.emailsRecebidos = converteListaDeEmails(caixaDeEntrada.obtemEmailsRecebido());
+
 	}
 
-	private ArrayList<EmailDTO> converteListaDeEmails(ArrayList<Email> emails){
+	private ArrayList<EmailDTO> converteListaDeEmails(List<Email> emails){
 		ArrayList<EmailDTO> listaDTO = new ArrayList<>();
 		for (Email emailAtual : emails){
 			EmailDTO emailDTO = new EmailDTO(emailAtual);

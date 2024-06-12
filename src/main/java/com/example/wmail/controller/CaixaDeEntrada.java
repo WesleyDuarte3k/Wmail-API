@@ -1,46 +1,75 @@
 package com.example.wmail.controller;
 
-import java.util.ArrayList;
+import com.example.wmail.repository.UserRepository;
+import jakarta.persistence.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
 public class CaixaDeEntrada {
 
-	private String emailAdress;
-	private final ArrayList<Email> emailsEnviados = new ArrayList<>();
-	private final ArrayList<Email> emailsRecebidos = new ArrayList<>();
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private long id;
+	private String emailAddress;
+	@OneToMany
+	private List<Email> emailsEnviados = new ArrayList<>();
+	@OneToMany
+	private List<Email> emailsRecebidos = new ArrayList<>();
+
+
+	public CaixaDeEntrada() {
+	}
 
 	public void escreveEmail(Email email) {
 		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAdress(), email.getDestinatario(), email.getTitulo(), email.getConteudo());
-
-
-
-		for (User userAtual : UserController.users){
-			if (userAtual.getEmailAdress().equals(email.getDestinatario())){
-				userAtual.getCaixaDeEntrada().recebe(emailAtual);
-				emailsEnviados.add(emailAtual);
-				return;
-			}
-		}
-		throw new RuntimeException("Destinatario não encontrado!");
+		emailsEnviados.add(emailAtual);
 	}
 
 	public void recebe(Email email){
 		emailsRecebidos.add(email);
 	}
 
-	public ArrayList<Email> obtemEmailsRecebido(){
+	public void recebeResposta(Email respostaEmail){
+		emailsRecebidos.add(respostaEmail);
+	}
+
+	public List<Email> obtemEmailsRecebido(){
 		return emailsRecebidos;
 	}
 
 	public CaixaDeEntrada(String emailAdress) {
-		this.emailAdress = emailAdress;
+		this.emailAddress = emailAdress;
 	}
 
-	public ArrayList<Email> obtemEmailsEnviados(){
+	public List<Email> obtemEmailsEnviados(){
 		return emailsEnviados;
 	}
 
-	public String getEmailAdress() {
-		return emailAdress;
+	public void setEmailAddress(String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	public void setEmailsEnviados(List<Email> emailsEnviados) {
+		this.emailsEnviados = emailsEnviados;
+	}
+
+	public void setEmailsRecebidos(List<Email> emailsRecebidos) {
+		this.emailsRecebidos = emailsRecebidos;
+	}
+
+	public List<Email> getEmailsEnviados() {
+		return emailsEnviados;
+	}
+
+	public List<Email> getEmailsRecebidos() {
+		return emailsRecebidos;
+	}
+
+	public String getEmailAddress() {
+		return emailAddress;
 	}
 }
 
