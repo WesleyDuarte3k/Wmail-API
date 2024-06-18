@@ -1,8 +1,6 @@
 package com.example.wmail.controller;
 
-import com.example.wmail.repository.UserRepository;
 import jakarta.persistence.*;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +12,9 @@ public class CaixaDeEntrada {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private long id;
 	private String emailAddress;
-	@OneToMany
+	@OneToMany(cascade = CascadeType.ALL)
 	private List<Email> emailsEnviados = new ArrayList<>();
-	@OneToMany
+	@OneToMany(cascade = CascadeType.ALL)
 	private List<Email> emailsRecebidos = new ArrayList<>();
 
 
@@ -24,7 +22,7 @@ public class CaixaDeEntrada {
 	}
 
 	public void escreveEmail(Email email) {
-		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAdress(), email.getDestinatario(), email.getTitulo(), email.getConteudo());
+		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAddress(), email.getDestinatario(), email.getTitulo(), email.getConteudo());
 		emailsEnviados.add(emailAtual);
 	}
 
@@ -32,8 +30,12 @@ public class CaixaDeEntrada {
 		emailsRecebidos.add(email);
 	}
 
-	public void recebeResposta(Email respostaEmail){
-		emailsRecebidos.add(respostaEmail);
+	public void recebeResposta(Long id, Email email){
+		for (Email emailAtual : emailsRecebidos){
+			if (emailAtual.getId() == id){
+				emailAtual.addResposta(email);
+			}
+		}
 	}
 
 	public List<Email> obtemEmailsRecebido(){
@@ -44,9 +46,7 @@ public class CaixaDeEntrada {
 		this.emailAddress = emailAdress;
 	}
 
-	public List<Email> obtemEmailsEnviados(){
-		return emailsEnviados;
-	}
+
 
 	public void setEmailAddress(String emailAddress) {
 		this.emailAddress = emailAddress;
@@ -60,17 +60,16 @@ public class CaixaDeEntrada {
 		this.emailsRecebidos = emailsRecebidos;
 	}
 
-	public List<Email> getEmailsEnviados() {
-		return emailsEnviados;
-	}
-
 	public List<Email> getEmailsRecebidos() {
 		return emailsRecebidos;
 	}
-
+	public List<Email> getEmailsEnviados(){
+		return emailsEnviados;
+	}
 	public String getEmailAddress() {
 		return emailAddress;
 	}
+
 }
 
 

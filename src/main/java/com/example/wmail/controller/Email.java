@@ -7,36 +7,37 @@ import java.util.List;
 
 @Entity
 public class Email {
-	public static long idCounter = 0;
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private  long id;
+	private Long id;
 	private String remetente;
 	private String destinatario;
 	private String titulo;
 	private String conteudo;
 	@OneToMany
-	private ArrayList<Email> listaDeRespostas = new ArrayList<>();
+	private List<Email> respostas = new ArrayList<>();
 
 
 	public Email(String remetente, String destinatario, String titulo, String conteudo) {
-		this.id = ++idCounter;
 		this.remetente = remetente;
 		this.destinatario = destinatario;
 		this.titulo = titulo;
 		this.conteudo = conteudo;
-		this.listaDeRespostas = new ArrayList<>();
+		this.respostas = new ArrayList<>();
 	}
 	public Email(EmailDTO emailDTO){
-		this.id = ++idCounter;
 		this.remetente = emailDTO.remetente;
 		this.destinatario = emailDTO.destinatario;
 		this.titulo = emailDTO.titulo;
 		this.conteudo = emailDTO.conteudo;
-		this.listaDeRespostas = emailDTO.listaDeRespostas;
+		this.respostas = emailDTO.respostas;
 	}
 
 	public Email() {
+	}
+
+	public void setId(Long id) {
+		this.id = id;
 	}
 
 	public long getId(){
@@ -47,24 +48,44 @@ public class Email {
 		return remetente;
 	}
 
+	public void setRemetente(String remetente) {
+		this.remetente = remetente;
+	}
+
 	public String getDestinatario() {
 		return destinatario;
+	}
+
+	public void setDestinatario(String destinatario) {
+		this.destinatario = destinatario;
 	}
 
 	public String getTitulo() {
 		return titulo;
 	}
 
+	public void setTitulo(String titulo) {
+		this.titulo = titulo;
+	}
+
 	public String getConteudo() {
 		return conteudo;
 	}
 
-	public List<Email> getListaDeRespostas() {
-		return listaDeRespostas;
+	public void setConteudo(String conteudo) {
+		this.conteudo = conteudo;
 	}
 
-	public void addResposta(Email resposta) {
-		listaDeRespostas.add(resposta);
+	public List<Email> getListaDeRespostas() {
+		return respostas;
+	}
+
+	public void setRespostas(List<Email> respostas) {
+		this.respostas = respostas;
+	}
+
+	public void addResposta(Email email) {
+		respostas.add(email);
 	}
 
 	@Override

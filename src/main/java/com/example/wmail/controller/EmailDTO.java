@@ -9,7 +9,7 @@ public class EmailDTO {
 	public String titulo;
 	public String conteudo;
 	public long id;
-	public ArrayList<Email> listaDeRespostas;
+	public ArrayList<Email> respostas;
 
 	public EmailDTO(Email email) {
 		this.remetente = email.getRemetente();

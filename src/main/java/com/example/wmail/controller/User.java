@@ -13,7 +13,7 @@ public class User {
 	private long id;
 	public String name;
 	public String password;
-	public String emailAdress;
+	public String emailAddress;
 	@OneToOne
 	@JoinColumn(name = "caixa_de_entrada_id")
 	private CaixaDeEntrada caixaDeEntrada;
@@ -24,8 +24,8 @@ public class User {
 		this.id = ++userId;
 		this.name = name;
 		this.password = password;
-		this.emailAdress = name.concat("Wmail.com");
-		this.caixaDeEntrada = new CaixaDeEntrada(emailAdress);
+		this.emailAddress = name.concat("Wmail.com");
+		this.caixaDeEntrada = new CaixaDeEntrada(emailAddress);
 	}
 
 	public User() {
@@ -45,8 +45,8 @@ public class User {
 		return password;
 	}
 
-	public String getEmailAdress() {
-		return emailAdress;
+	public String getEmailAddress() {
+		return emailAddress;
 	}
 
 	public void bloqueiaUsuario (long id){
