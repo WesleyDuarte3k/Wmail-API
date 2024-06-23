@@ -11,12 +11,15 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
 	public static ArrayList<User> users = new ArrayList<>();
 	public static User usuarioLogado;
+	public static User usuarioAlterado;
+	public static Boolean verificationCodeChecked = false;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -34,12 +37,24 @@ public class UserController {
 
 	@PostMapping("/login")
 	public ResponseEntity<User> iniciaSessao(@RequestBody User user) {
-		for (User usuarioAtual : userRepository.findAll()) {
-			if (usuarioAtual.getName().equals(user.getName()) && usuarioAtual.getPassword().equals(user.getPassword())) {
-				usuarioLogado = usuarioAtual;
+		if (Objects.isNull(usuarioLogado)){
+			for (User usuarioAtual : userRepository.findAll()) {
+				if (usuarioAtual.getName().equals(user.getName()) && usuarioAtual.getPassword().equals(user.getPassword())) {
+					usuarioLogado = usuarioAtual;
 
-				return ResponseEntity.ok(usuarioAtual);
+					return ResponseEntity.ok(usuarioAtual);
+				}
 			}
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		}
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+	}
+
+	@PostMapping("/desloga")
+	public ResponseEntity<String> desconecta(){
+		if (Objects.nonNull(usuarioLogado)){
+			usuarioLogado = null;
+			return ResponseEntity.ok("Desconectado");
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 	}
@@ -68,57 +83,47 @@ public class UserController {
 	}
 
 	@PostMapping("/send-emails")
-	public ResponseEntity<EmailDTO> escreveEmail(@RequestBody EmailDTO emailDTO) {
-		Email email = new Email(emailDTO);
+	public ResponseEntity<String> escreveEmail(@RequestBody EmailDTO emailDTO) {
+		List<CaixaDeEntrada> caixasDeEntrada = new ArrayList<>();
+
 		if (Objects.nonNull(usuarioLogado)) {
-			for (User destinatario : userRepository.findAll()) {
-				if (destinatario.emailAddress.equals(usuarioLogado.getEmailAddress())) {
-					destinatario.getCaixaDeEntrada().escreveEmail(email);
-					destinatario.getCaixaDeEntrada().recebe(email);
+			for (String destinatario : emailDTO.destinatarios) {
+				Optional<CaixaDeEntrada> caixaDeEntradaEncontrada = caixaDeEntradaRepository.findByEmailAddress(destinatario);
 
-					userRepository.save(destinatario);
-
-					return ResponseEntity.ok(emailDTO);
-				} else if (destinatario.emailAddress.equals(email.getDestinatario())) {
-					usuarioLogado.getCaixaDeEntrada().escreveEmail(email);
-					destinatario.getCaixaDeEntrada().recebe(email);
-
-					caixaDeEntradaRepository.save(usuarioLogado.getCaixaDeEntrada());
-					caixaDeEntradaRepository.save(destinatario.getCaixaDeEntrada());
-
-					return ResponseEntity.ok(emailDTO);
+				if (caixaDeEntradaEncontrada.isPresent()) {
+					caixasDeEntrada.add(caixaDeEntradaEncontrada.get());
+				} else {
+					return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Destinatário não encontrado: " + destinatario);
 				}
 			}
-		}
-		return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-	}
+			Email email = new Email(emailDTO, caixasDeEntrada);
 
+			usuarioLogado.getCaixaDeEntrada().escreveEmail(email, caixasDeEntrada);
+			userRepository.save(usuarioLogado);
 
-	@PostMapping("/responder/{id}")
-	public ResponseEntity<String> responderEmail(@PathVariable long id, @RequestBody EmailDTO respostaDTO) {
-		Email resposta = new Email(respostaDTO);
-		if (Objects.nonNull(usuarioLogado)){
-			usuarioLogado.getCaixaDeEntrada().recebeResposta(id, resposta);
-			usuarioLogado.getCaixaDeEntrada().getEmailsEnviados().add(resposta);
-			caixaDeEntradaRepository.save(usuarioLogado.getCaixaDeEntrada());
-			return ResponseEntity.status(HttpStatus.CREATED).build();
-		}
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-	}
-
-	@GetMapping("/obtem-fila-de-respostas/{id}")
-	public ResponseEntity<List<Email>> exibeFilaDeRespostas(@PathVariable long id) {
-		if (usuarioLogado != null) {
-			CaixaDeEntradaDTO caixaDeEntradaDTO = new CaixaDeEntradaDTO(usuarioLogado.getCaixaDeEntrada());
-			for (Email email : usuarioLogado.getCaixaDeEntrada().obtemEmailsRecebido()) {
-				if (email.getId() == id) {
-					email.getListaDeRespostas();
-					return ResponseEntity.ok(email.getListaDeRespostas());
-				}
+			for (CaixaDeEntrada caixaDeEntrada : caixasDeEntrada) {
+				caixaDeEntrada.recebe(email);
+				caixaDeEntradaRepository.save(caixaDeEntrada);
 			}
+			return ResponseEntity.ok("Mensagem enviada!");
 		}
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário não está logado. Não foi possível enviar!");
 	}
+
+
+
+//	@PostMapping("/responder/{id}")
+//	public ResponseEntity<String> responderEmail(@PathVariable long id, @RequestBody EmailDTO respostaDTO) {
+//		Email resposta = new Email(respostaDTO);
+//		if (Objects.nonNull(usuarioLogado)){
+//			usuarioLogado.getCaixaDeEntrada().recebeResposta(id, resposta);
+//			usuarioLogado.getCaixaDeEntrada().getEmailsEnviados().add(resposta);
+//			caixaDeEntradaRepository.save(usuarioLogado.getCaixaDeEntrada());
+//			return ResponseEntity.status(HttpStatus.CREATED).build();
+//		}
+//		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+//	}
+
 
 	@DeleteMapping("/delete-email-recebido/{id}")
 	public ResponseEntity<String> deletaEmailRecebido(@PathVariable long id) {
@@ -182,5 +187,35 @@ public class UserController {
 	public ResponseEntity<List<Long>> listaDeUmUsuario() {
 //		return ResponseEntity.ok(UserController.usuarioLogado.getListaDeUsuarios());
 		return ResponseEntity.ok().build();
+	}
+
+	@PostMapping("/recovery-password")
+	public ResponseEntity<String> recoveryPassword(@RequestBody String email){
+		Optional<User> userfound = userRepository.findByEmailAddress(email);
+		if (userfound.isPresent()){
+			userfound.get().sendRecoveryEmail(userRepository.findAll());
+			usuarioAlterado = userfound.get();
+			return ResponseEntity.ok("Código de recuperação enviado");
+		}
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+	}
+
+	@PostMapping("/check-verification-code")
+	public ResponseEntity<String> checkVerificationCode(@RequestBody String verificationCode){
+		if (Objects.nonNull(usuarioAlterado) && usuarioAlterado.getVerificationCode().equals(verificationCode)){
+			verificationCodeChecked = true;
+			return ResponseEntity.ok("Codigo verificado");
+		}
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+	}
+
+	@PatchMapping("/change-password")
+	public ResponseEntity<String> changePassword(@RequestBody String newPassword){
+		if (verificationCodeChecked){
+		usuarioAlterado.changePassword(newPassword);
+		userRepository.save(usuarioAlterado);
+		return ResponseEntity.ok("Senha alterada");
+		}
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 	}
 }

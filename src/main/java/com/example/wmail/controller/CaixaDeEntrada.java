@@ -18,11 +18,12 @@ public class CaixaDeEntrada {
 	private List<Email> emailsRecebidos = new ArrayList<>();
 
 
+
 	public CaixaDeEntrada() {
 	}
 
-	public void escreveEmail(Email email) {
-		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAddress(), email.getDestinatario(), email.getTitulo(), email.getConteudo());
+	public void escreveEmail(Email email, List<CaixaDeEntrada> caixaDeEntradas) {
+		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAddress(), caixaDeEntradas, email.getTitulo(), email.getConteudo());
 		emailsEnviados.add(emailAtual);
 	}
 

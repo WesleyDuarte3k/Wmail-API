@@ -1,5 +1,6 @@
 package com.example.wmail.controller;
 
+import com.example.wmail.repository.UserRepository;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
@@ -11,26 +12,39 @@ public class Email {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 	private String remetente;
-	private String destinatario;
 	private String titulo;
 	private String conteudo;
+
+	@ManyToMany
+	private List<CaixaDeEntrada> destinatarios = new ArrayList<>();
+
 	@OneToMany
 	private List<Email> respostas = new ArrayList<>();
 
 
-	public Email(String remetente, String destinatario, String titulo, String conteudo) {
-		this.remetente = remetente;
-		this.destinatario = destinatario;
-		this.titulo = titulo;
-		this.conteudo = conteudo;
-		this.respostas = new ArrayList<>();
-	}
-	public Email(EmailDTO emailDTO){
+//	public Email(String remetente, String destinatario, String titulo, String conteudo) {
+//		this.remetente = remetente;
+//		this.destinatario = destinatario;
+//		this.titulo = titulo;
+//		this.conteudo = conteudo;
+//		this.respostas = new ArrayList<>();
+//	}
+	public Email(EmailDTO emailDTO, List<CaixaDeEntrada> caixaDeEntradas){
 		this.remetente = emailDTO.remetente;
-		this.destinatario = emailDTO.destinatario;
+		this.destinatarios = caixaDeEntradas;
 		this.titulo = emailDTO.titulo;
 		this.conteudo = emailDTO.conteudo;
 		this.respostas = emailDTO.respostas;
+	}
+
+
+
+	public Email(String remetente, List<CaixaDeEntrada> destinatarios, String titulo, String conteudo) {
+		this.remetente = remetente;
+		this.destinatarios = destinatarios;
+		this.titulo = titulo;
+		this.conteudo = conteudo;
+		this.respostas = new ArrayList<>();
 	}
 
 	public Email() {
@@ -40,6 +54,9 @@ public class Email {
 		this.id = id;
 	}
 
+	public List<CaixaDeEntrada> getDestinatarios() {
+		return destinatarios;
+	}
 	public long getId(){
 		return id;
 	}
@@ -52,13 +69,7 @@ public class Email {
 		this.remetente = remetente;
 	}
 
-	public String getDestinatario() {
-		return destinatario;
-	}
 
-	public void setDestinatario(String destinatario) {
-		this.destinatario = destinatario;
-	}
 
 	public String getTitulo() {
 		return titulo;
@@ -88,12 +99,20 @@ public class Email {
 		respostas.add(email);
 	}
 
+	public void adicionaDestinatario(List<User> users, String emailAddress){
+		for (User user : users){
+			if (user.getEmailAddress().equals(emailAddress)){
+				destinatarios.add(user.getCaixaDeEntrada());
+			}
+		}
+	}
+
 	@Override
 	public String toString() {
 		return "Email { " +
 				"ID = '" + id + '\n' +
 			"Remetente = '" + remetente + '\n' +
-			"\n Destinatario = '" + destinatario + '\n' +
+			"\n Destinatarios = '" + destinatarios + '\n' +
 			"\n Titulo = '" + titulo + '\n' +
 			"\n Conteudo = \n '" + conteudo +'\n';
 	}
