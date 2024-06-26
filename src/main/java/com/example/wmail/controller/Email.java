@@ -22,21 +22,20 @@ public class Email {
 	private List<Email> respostas = new ArrayList<>();
 
 
-//	public Email(String remetente, String destinatario, String titulo, String conteudo) {
+	//	public Email(String remetente, String destinatario, String titulo, String conteudo) {
 //		this.remetente = remetente;
 //		this.destinatario = destinatario;
 //		this.titulo = titulo;
 //		this.conteudo = conteudo;
 //		this.respostas = new ArrayList<>();
 //	}
-	public Email(EmailDTO emailDTO, List<CaixaDeEntrada> caixaDeEntradas){
+	public Email(EmailDTO emailDTO, List<CaixaDeEntrada> caixaDeEntradas) {
 		this.remetente = emailDTO.remetente;
 		this.destinatarios = caixaDeEntradas;
 		this.titulo = emailDTO.titulo;
 		this.conteudo = emailDTO.conteudo;
 		this.respostas = emailDTO.respostas;
 	}
-
 
 
 	public Email(String remetente, List<CaixaDeEntrada> destinatarios, String titulo, String conteudo) {
@@ -57,7 +56,8 @@ public class Email {
 	public List<CaixaDeEntrada> getDestinatarios() {
 		return destinatarios;
 	}
-	public long getId(){
+
+	public long getId() {
 		return id;
 	}
 
@@ -68,7 +68,6 @@ public class Email {
 	public void setRemetente(String remetente) {
 		this.remetente = remetente;
 	}
-
 
 
 	public String getTitulo() {
@@ -99,9 +98,9 @@ public class Email {
 		respostas.add(email);
 	}
 
-	public void adicionaDestinatario(List<User> users, String emailAddress){
-		for (User user : users){
-			if (user.getEmailAddress().equals(emailAddress)){
+	public void adicionaDestinatario(List<User> users, String emailAddress) {
+		for (User user : users) {
+			if (user.getEmailAddress().equals(emailAddress)) {
 				destinatarios.add(user.getCaixaDeEntrada());
 			}
 		}
@@ -110,11 +109,11 @@ public class Email {
 	@Override
 	public String toString() {
 		return "Email { " +
-				"ID = '" + id + '\n' +
+			"ID = '" + id + '\n' +
 			"Remetente = '" + remetente + '\n' +
 			"\n Destinatarios = '" + destinatarios + '\n' +
 			"\n Titulo = '" + titulo + '\n' +
-			"\n Conteudo = \n '" + conteudo +'\n';
+			"\n Conteudo = \n '" + conteudo + '\n';
 	}
 }
 
