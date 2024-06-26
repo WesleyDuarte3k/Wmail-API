@@ -49,9 +49,6 @@ public class Email {
 	public Email() {
 	}
 
-	public void setId(Long id) {
-		this.id = id;
-	}
 
 	public List<CaixaDeEntrada> getDestinatarios() {
 		return destinatarios;
@@ -61,38 +58,43 @@ public class Email {
 		return id;
 	}
 
-	public String getRemetente() {
-		return remetente;
-	}
-
-	public void setRemetente(String remetente) {
-		this.remetente = remetente;
-	}
-
-
 	public String getTitulo() {
 		return titulo;
 	}
 
-	public void setTitulo(String titulo) {
-		this.titulo = titulo;
+	public String getRemetente() {
+		return remetente;
 	}
 
 	public String getConteudo() {
 		return conteudo;
 	}
 
-	public void setConteudo(String conteudo) {
-		this.conteudo = conteudo;
-	}
-
 	public List<Email> getListaDeRespostas() {
 		return respostas;
+	}
+
+
+	public void setRemetente(String remetente) {
+		this.remetente = remetente;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public void setTitulo(String titulo) {
+		this.titulo = titulo;
+	}
+
+	public void setConteudo(String conteudo) {
+		this.conteudo = conteudo;
 	}
 
 	public void setRespostas(List<Email> respostas) {
 		this.respostas = respostas;
 	}
+
 
 	public void addResposta(Email email) {
 		respostas.add(email);

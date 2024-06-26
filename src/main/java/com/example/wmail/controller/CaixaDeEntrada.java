@@ -18,35 +18,25 @@ public class CaixaDeEntrada {
 	private List<Email> emailsRecebidos = new ArrayList<>();
 
 
-
 	public CaixaDeEntrada() {
-	}
-
-	public void escreveEmail(Email email, List<CaixaDeEntrada> caixaDeEntradas) {
-		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAddress(), caixaDeEntradas, email.getTitulo(), email.getConteudo());
-		emailsEnviados.add(emailAtual);
-	}
-
-	public void recebe(Email email){
-		emailsRecebidos.add(email);
-	}
-
-	public void recebeResposta(Long id, Email email){
-		for (Email emailAtual : emailsRecebidos){
-			if (emailAtual.getId() == id){
-				emailAtual.addResposta(email);
-			}
-		}
-	}
-
-	public List<Email> obtemEmailsRecebido(){
-		return emailsRecebidos;
 	}
 
 	public CaixaDeEntrada(String emailAdress) {
 		this.emailAddress = emailAdress;
 	}
 
+
+	public List<Email> getEmailsRecebidos() {
+		return emailsRecebidos;
+	}
+
+	public List<Email> getEmailsEnviados() {
+		return emailsEnviados;
+	}
+
+	public String getEmailAddress() {
+		return emailAddress;
+	}
 
 
 	public void setEmailAddress(String emailAddress) {
@@ -61,15 +51,24 @@ public class CaixaDeEntrada {
 		this.emailsRecebidos = emailsRecebidos;
 	}
 
-	public List<Email> getEmailsRecebidos() {
-		return emailsRecebidos;
+
+	public void escreveEmail(Email email, List<CaixaDeEntrada> caixaDeEntradas) {
+		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAddress(), caixaDeEntradas, email.getTitulo(), email.getConteudo());
+		emailsEnviados.add(emailAtual);
 	}
-	public List<Email> getEmailsEnviados(){
-		return emailsEnviados;
+
+	public void recebe(Email email) {
+		emailsRecebidos.add(email);
 	}
-	public String getEmailAddress() {
-		return emailAddress;
+
+	public void recebeResposta(Long id, Email email) {
+		for (Email emailAtual : emailsRecebidos) {
+			if (emailAtual.getId() == id) {
+				emailAtual.addResposta(email);
+			}
+		}
 	}
+
 
 }
 

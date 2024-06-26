@@ -13,7 +13,7 @@ public class CaixaDeEntradaDTO {
 	public CaixaDeEntradaDTO(CaixaDeEntrada caixaDeEntrada) {
 		this.emailAdress = caixaDeEntrada.getEmailAddress();
 		this.emailsEnviados = converteListaDeEmails(caixaDeEntrada.getEmailsEnviados());
-		this.emailsRecebidos = converteListaDeEmails(caixaDeEntrada.obtemEmailsRecebido());
+		this.emailsRecebidos = converteListaDeEmails(caixaDeEntrada.getEmailsRecebidos());
 	}
 
 	private List<EmailDTO> converteListaDeEmails(List<Email> emails){

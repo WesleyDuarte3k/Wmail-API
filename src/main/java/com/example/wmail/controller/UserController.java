@@ -3,7 +3,6 @@ package com.example.wmail.controller;
 import com.example.wmail.repository.CaixaDeEntradaRepository;
 import com.example.wmail.repository.EmailRepository;
 import com.example.wmail.repository.UserRepository;
-import jakarta.websocket.server.PathParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -76,7 +75,7 @@ public class UserController {
 		if (Objects.nonNull(usuarioLogado)) {
 			for (User user : userRepository.findAll()) {
 				if (user.emailAddress.equals(usuarioLogado.emailAddress)) {
-					return ResponseEntity.ok(user.getCaixaDeEntrada().obtemEmailsRecebido());
+					return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsRecebidos());
 				}
 			}
 		}
@@ -128,9 +127,9 @@ public class UserController {
 	@DeleteMapping("/delete-email-recebido/{id}")
 	public ResponseEntity<String> deletaEmailRecebido(@PathVariable long id) {
 		if (Objects.nonNull(usuarioLogado)) {
-			for (Email email : usuarioLogado.getCaixaDeEntrada().obtemEmailsRecebido()) {
+			for (Email email : usuarioLogado.getCaixaDeEntrada().getEmailsRecebidos()) {
 				if (email.getId() == id) {
-					usuarioLogado.getCaixaDeEntrada().obtemEmailsRecebido().remove(email);
+					usuarioLogado.getCaixaDeEntrada().getEmailsRecebidos().remove(email);
 					caixaDeEntradaRepository.save(usuarioLogado.getCaixaDeEntrada());
 					return ResponseEntity.ok("Email deletado com sucesso!");
 				}
@@ -206,6 +205,7 @@ public class UserController {
 
 				Email emailRecovery = new Email();
 				emailRecovery.setConteudo("Seu código de verificação: " + user.getVerificationCode());
+				emailRecovery.adicionaDestinatario(userRepository.findAll(), user.getRecoveryEmail());
 				destinatarioFound.get().getCaixaDeEntrada().getEmailsRecebidos().add(emailRecovery);
 				userRepository.save(destinatarioFound.get());
 				userRepository.save(user);
@@ -221,8 +221,8 @@ public class UserController {
 
 	@PostMapping("/check-verification-code")
 	public ResponseEntity<String> checkVerificationCode(@RequestBody String verificationCode) {
-		for (User user : userRepository.findAll()){
-			if (user.getVerificationCode().equals(verificationCode)){
+		for (User user : userRepository.findAll()) {
+			if (user.getVerificationCode().equals(verificationCode)) {
 				user.setVerificationCodeChecked(true);
 				userRepository.save(user);
 			}
