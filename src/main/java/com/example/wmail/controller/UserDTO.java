@@ -12,4 +12,9 @@ public class UserDTO {
 		this.id = user.getId();
 		this.caixaDeEntrada = new CaixaDeEntradaDTO(user.getCaixaDeEntrada());
 	}
+
+	public UserDTO(String emailAdress){
+		this.emailAdress = emailAdress;
+
+	}
 }

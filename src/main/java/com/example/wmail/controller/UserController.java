@@ -188,10 +188,11 @@ public class UserController {
 		return ResponseEntity.ok().build();
 	}
 
-	@PostMapping("/send-recovery-email/{id}")
-	public ResponseEntity<String> sendRecoveryEmail(@PathVariable long id) {
-		Optional<User> userFound = userRepository.findById(id);
 
+
+	@PostMapping("/send-recovery-email")
+	public ResponseEntity<String> sendRecoveryEmail(@RequestBody EmailAddressDTO emailAddressDTO) {
+		Optional<User> userFound = userRepository.findByEmailAddress(emailAddressDTO.emailAddress);
 
 		if (userFound.isPresent()) {
 			User user = userFound.get();
@@ -233,10 +234,10 @@ public class UserController {
 
 	@PatchMapping("/change-password")
 	public ResponseEntity<String> changePassword(@RequestBody String newPassword) {
-		if (usuarioAlterado != null && usuarioAlterado.isVerificationCodeChecked()) {
-			usuarioAlterado.changePassword(newPassword);
-			usuarioAlterado.setVerificationCodeChecked(false);
-			userRepository.save(usuarioAlterado);
+		if (usuarioLogado != null && usuarioLogado.isVerificationCodeChecked()) {
+			usuarioLogado.changePassword(newPassword);
+			usuarioLogado.setVerificationCodeChecked(false);
+			userRepository.save(usuarioLogado);
 			return ResponseEntity.ok("Senha alterada com sucesso");
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Não autorizado para alterar a senha");
