@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+
 
 @Entity
 public class User {
@@ -17,7 +17,11 @@ public class User {
 	public String password;
 	public String emailAddress;
 	public String recoveryEmail;
+
 	public boolean verificationCodeChecked;
+
+	@OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+	private Token token;
 
 
 	@OneToOne
@@ -25,6 +29,8 @@ public class User {
 	private CaixaDeEntrada caixaDeEntrada;
 	@ManyToMany
 	private List<User> usuariosBloqueados = new ArrayList<>();
+
+
 
 	public User(String name, String password, String recoveryEmail) {
 		this.id = ++userId;
@@ -42,6 +48,7 @@ public class User {
 		return id;
 	}
 
+
 	public String getRecoveryEmail() {
 		return recoveryEmail;
 	}
@@ -58,6 +65,10 @@ public class User {
 		return password;
 	}
 
+	public Token getToken() {
+		return token;
+	}
+
 	public String getEmailAddress() {
 		return emailAddress;
 	}
@@ -72,6 +83,10 @@ public class User {
 
 	public void setVerificationCodeChecked(boolean verificationCodeChecked) {
 		this.verificationCodeChecked = verificationCodeChecked;
+	}
+
+	public void setToken(Token token) {
+		this.token = token;
 	}
 
 	public boolean isVerificationCodeChecked() {

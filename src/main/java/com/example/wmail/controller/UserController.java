@@ -2,6 +2,7 @@ package com.example.wmail.controller;
 
 import com.example.wmail.repository.CaixaDeEntradaRepository;
 import com.example.wmail.repository.EmailRepository;
+import com.example.wmail.repository.TokenRepository;
 import com.example.wmail.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,8 +18,9 @@ import java.util.Optional;
 @RequestMapping("/users")
 public class UserController {
 	public static ArrayList<User> users = new ArrayList<>();
-	public static User usuarioLogado;
+	public static User currentUser;
 	public static User usuarioAlterado;
+	public static String currentToken;
 	public static Boolean verificationCodeChecked = false;
 
 	@Autowired
@@ -27,6 +29,8 @@ public class UserController {
 	private CaixaDeEntradaRepository caixaDeEntradaRepository;
 	@Autowired
 	private EmailRepository emailRepository;
+	@Autowired
+	private TokenRepository tokenRepository;
 
 
 	@GetMapping("")
@@ -35,25 +39,36 @@ public class UserController {
 		return ResponseEntity.status(HttpStatus.OK).body(usuarios);
 	}
 
-	@PostMapping("/login")
-	public ResponseEntity<User> iniciaSessao(@RequestBody User user) {
-		if (Objects.isNull(usuarioLogado)) {
-			for (User usuarioAtual : userRepository.findAll()) {
-				if (usuarioAtual.getName().equals(user.getName()) && usuarioAtual.getPassword().equals(user.getPassword())) {
-					usuarioLogado = usuarioAtual;
 
-					return ResponseEntity.ok(usuarioAtual);
+	@PostMapping("/login")
+	public ResponseEntity<String> login(@RequestBody User user) {
+		for (User userfound : userRepository.findAll()) {
+
+			if (user.getName().equals(userfound.getName())) {
+
+				if (Objects.nonNull(userfound)) {
+					Token token = new Token(userfound);
+					tokenRepository.save(token);
+					userfound.setToken(token);
+					currentToken = token.getToken();
+					currentUser = userfound;
+					userRepository.save(userfound);
+
+					return ResponseEntity.ok("Conectado.");
 				}
+				return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
 			}
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Senha incorreta.");
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 	}
 
+
 	@PostMapping("/desloga")
 	public ResponseEntity<String> desconecta() {
-		if (Objects.nonNull(usuarioLogado)) {
-			usuarioLogado = null;
+		if (Objects.nonNull(currentUser) || !currentUser.getToken().equals(currentToken)) {
+			currentUser = null;
+			currentToken = null;
 			return ResponseEntity.ok("Desconectado");
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -61,10 +76,10 @@ public class UserController {
 
 	@GetMapping("/sent-emails")
 	public ResponseEntity<List<Email>> exibeEmailsEnviados() {
-		if (Objects.nonNull(usuarioLogado)) {
-			CaixaDeEntradaDTO caixaDeEntradaDTO = new CaixaDeEntradaDTO(usuarioLogado.getCaixaDeEntrada());
-			userRepository.save(usuarioLogado);
-			return ResponseEntity.ok().body(usuarioLogado.getCaixaDeEntrada().getEmailsEnviados());
+		if (Objects.nonNull(currentUser)) {
+			CaixaDeEntradaDTO caixaDeEntradaDTO = new CaixaDeEntradaDTO(currentUser.getCaixaDeEntrada());
+			userRepository.save(currentUser);
+			return ResponseEntity.ok().body(currentUser.getCaixaDeEntrada().getEmailsEnviados());
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 	}
@@ -72,9 +87,9 @@ public class UserController {
 	@GetMapping("/received-emails")
 	public ResponseEntity<List<Email>> exibeEmailsRecebidos() {
 
-		if (Objects.nonNull(usuarioLogado)) {
+		if (Objects.nonNull(currentUser)) {
 			for (User user : userRepository.findAll()) {
-				if (user.emailAddress.equals(usuarioLogado.emailAddress)) {
+				if (user.emailAddress.equals(currentUser.emailAddress)) {
 					return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsRecebidos());
 				}
 			}
@@ -86,7 +101,7 @@ public class UserController {
 	public ResponseEntity<String> escreveEmail(@RequestBody EmailDTO emailDTO) {
 		List<CaixaDeEntrada> caixasDeEntrada = new ArrayList<>();
 
-		if (Objects.nonNull(usuarioLogado)) {
+		if (Objects.nonNull(currentUser)) {
 			for (String destinatario : emailDTO.destinatarios) {
 				Optional<CaixaDeEntrada> caixaDeEntradaEncontrada = caixaDeEntradaRepository.findByEmailAddress(destinatario);
 
@@ -98,8 +113,8 @@ public class UserController {
 			}
 			Email email = new Email(emailDTO, caixasDeEntrada);
 
-			usuarioLogado.getCaixaDeEntrada().escreveEmail(email, caixasDeEntrada);
-			userRepository.save(usuarioLogado);
+			currentUser.getCaixaDeEntrada().escreveEmail(email, caixasDeEntrada);
+			userRepository.save(currentUser);
 
 			for (CaixaDeEntrada caixaDeEntrada : caixasDeEntrada) {
 				caixaDeEntrada.recebe(email);
@@ -126,11 +141,11 @@ public class UserController {
 
 	@DeleteMapping("/delete-email-recebido/{id}")
 	public ResponseEntity<String> deletaEmailRecebido(@PathVariable long id) {
-		if (Objects.nonNull(usuarioLogado)) {
-			for (Email email : usuarioLogado.getCaixaDeEntrada().getEmailsRecebidos()) {
+		if (Objects.nonNull(currentUser)) {
+			for (Email email : currentUser.getCaixaDeEntrada().getEmailsRecebidos()) {
 				if (email.getId() == id) {
-					usuarioLogado.getCaixaDeEntrada().getEmailsRecebidos().remove(email);
-					caixaDeEntradaRepository.save(usuarioLogado.getCaixaDeEntrada());
+					currentUser.getCaixaDeEntrada().getEmailsRecebidos().remove(email);
+					caixaDeEntradaRepository.save(currentUser.getCaixaDeEntrada());
 					return ResponseEntity.ok("Email deletado com sucesso!");
 				}
 			}
@@ -140,11 +155,11 @@ public class UserController {
 
 	@DeleteMapping("/delete-email-enviado/{id}")
 	public ResponseEntity<String> deletaEmailEnviado(@PathVariable long id) {
-		if (Objects.nonNull(usuarioLogado)) {
-			for (Email email : usuarioLogado.getCaixaDeEntrada().getEmailsEnviados()) {
+		if (Objects.nonNull(currentUser)) {
+			for (Email email : currentUser.getCaixaDeEntrada().getEmailsEnviados()) {
 				if (email.getId() == id) {
-					usuarioLogado.getCaixaDeEntrada().getEmailsEnviados().remove(email);
-					caixaDeEntradaRepository.save(usuarioLogado.getCaixaDeEntrada());
+					currentUser.getCaixaDeEntrada().getEmailsEnviados().remove(email);
+					caixaDeEntradaRepository.save(currentUser.getCaixaDeEntrada());
 					return ResponseEntity.ok("Email deletado com sucesso!");
 				}
 			}
@@ -155,7 +170,7 @@ public class UserController {
 	@DeleteMapping("/bloqueia-usuario/{id}")
 	public ResponseEntity<Void> bloqueiaUsuario(@PathVariable long id) {
 		try {
-			usuarioLogado.bloqueiaUsuario(id);
+			currentUser.bloqueiaUsuario(id);
 			return ResponseEntity.status(HttpStatus.OK).build();
 		} catch (Exception exception) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -164,13 +179,13 @@ public class UserController {
 
 	@GetMapping("/get-users")
 	public ResponseEntity<List<User>> obtemListaDeUsuarios() {
-		return ResponseEntity.ok(usuarioLogado.getUsuariosBloqueados());
+		return ResponseEntity.ok(currentUser.getUsuariosBloqueados());
 	}
 
 	@DeleteMapping("/desbloqueia-user/{id}")
 	public ResponseEntity<Void> desbloqueiaUsuario(@PathVariable long id) {
 		try {
-			usuarioLogado.desbloqueiaUsuario(id);
+			currentUser.desbloqueiaUsuario(id);
 			return ResponseEntity.ok().build();
 		} catch (Exception exception) {
 			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -189,7 +204,6 @@ public class UserController {
 	}
 
 
-
 	@PostMapping("/send-recovery-email")
 	public ResponseEntity<String> sendRecoveryEmail(@RequestBody EmailAddressDTO emailAddressDTO) {
 		Optional<User> userFound = userRepository.findByEmailAddress(emailAddressDTO.emailAddress);
@@ -202,7 +216,7 @@ public class UserController {
 			if (destinatarioFound.isPresent()) {
 				user.generateVerificationCode();
 				userRepository.save(user);
-				usuarioLogado = user;
+				currentUser = user;
 
 				Email emailRecovery = new Email();
 				emailRecovery.setConteudo("Seu código de verificação: " + user.getVerificationCode());
@@ -234,10 +248,10 @@ public class UserController {
 
 	@PatchMapping("/change-password")
 	public ResponseEntity<String> changePassword(@RequestBody String newPassword) {
-		if (usuarioLogado != null && usuarioLogado.isVerificationCodeChecked()) {
-			usuarioLogado.changePassword(newPassword);
-			usuarioLogado.setVerificationCodeChecked(false);
-			userRepository.save(usuarioLogado);
+		if (currentUser != null && currentUser.isVerificationCodeChecked()) {
+			currentUser.changePassword(newPassword);
+			currentUser.setVerificationCodeChecked(false);
+			userRepository.save(currentUser);
 			return ResponseEntity.ok("Senha alterada com sucesso");
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Não autorizado para alterar a senha");

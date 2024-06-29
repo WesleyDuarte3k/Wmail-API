@@ -53,7 +53,7 @@ public class CaixaDeEntrada {
 
 
 	public void escreveEmail(Email email, List<CaixaDeEntrada> caixaDeEntradas) {
-		Email emailAtual = new Email(UserController.usuarioLogado.getEmailAddress(), caixaDeEntradas, email.getTitulo(), email.getConteudo());
+		Email emailAtual = new Email(UserController.currentUser.getEmailAddress(), caixaDeEntradas, email.getTitulo(), email.getConteudo());
 		emailsEnviados.add(emailAtual);
 	}
 
