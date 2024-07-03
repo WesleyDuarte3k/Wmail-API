@@ -1,14 +1,11 @@
 package com.example.wmail.controller;
 
 import jakarta.persistence.*;
-
 import java.util.ArrayList;
 import java.util.List;
 
-
 @Entity
 public class User {
-	public static long userId = 0;
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private long id;
@@ -17,23 +14,20 @@ public class User {
 	public String password;
 	public String emailAddress;
 	public String recoveryEmail;
-
+	public String token;
 	public boolean verificationCodeChecked;
 
-	@OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-	private Token token;
 
 
 	@OneToOne
 	@JoinColumn(name = "caixa_de_entrada_id")
 	private CaixaDeEntrada caixaDeEntrada;
+
 	@ManyToMany
 	private List<User> usuariosBloqueados = new ArrayList<>();
 
-
-
 	public User(String name, String password, String recoveryEmail) {
-		this.id = ++userId;
+//		this.id = ++userId;
 		this.name = name;
 		this.password = password;
 		this.emailAddress = name.concat("Wmail.com");
@@ -47,7 +41,6 @@ public class User {
 	public long getId() {
 		return id;
 	}
-
 
 	public String getRecoveryEmail() {
 		return recoveryEmail;
@@ -65,8 +58,12 @@ public class User {
 		return password;
 	}
 
-	public Token getToken() {
+	public String getToken() {
 		return token;
+	}
+
+	public void setToken(String token) {
+		this.token = token;
 	}
 
 	public String getEmailAddress() {
@@ -85,10 +82,6 @@ public class User {
 		this.verificationCodeChecked = verificationCodeChecked;
 	}
 
-	public void setToken(Token token) {
-		this.token = token;
-	}
-
 	public boolean isVerificationCodeChecked() {
 		return verificationCodeChecked;
 	}
@@ -103,7 +96,6 @@ public class User {
 	}
 
 	public void generateVerificationCode() {
-
 		this.verificationCode = String.valueOf((int) (Math.random() * 900000) + 100000);
 	}
 

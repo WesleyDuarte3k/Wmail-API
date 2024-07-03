@@ -20,8 +20,9 @@ public class UserController {
 	public static ArrayList<User> users = new ArrayList<>();
 	public static User currentUser;
 	public static User usuarioAlterado;
-	public static String currentToken;
+	public static Token currentToken;
 	public static Boolean verificationCodeChecked = false;
+
 
 	@Autowired
 	private UserRepository userRepository;
@@ -43,40 +44,43 @@ public class UserController {
 	@PostMapping("/login")
 	public ResponseEntity<String> login(@RequestBody User user) {
 		for (User userfound : userRepository.findAll()) {
+			if (userfound.getPassword().equals(user.getPassword())) {
+				Token token = new Token(userfound);
+				tokenRepository.save(token);
+				userfound.setToken(token.getToken());
+				currentToken = token;
+				currentUser = userfound;
+				userRepository.save(userfound);
 
-			if (user.getName().equals(userfound.getName())) {
-
-				if (Objects.nonNull(userfound)) {
-					Token token = new Token(userfound);
-					tokenRepository.save(token);
-					userfound.setToken(token);
-					currentToken = token.getToken();
-					currentUser = userfound;
-					userRepository.save(userfound);
-
-					return ResponseEntity.ok("Conectado.");
-				}
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
+				return ResponseEntity.ok("Conectado. Token: " + token.getToken());
+			} else {
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Senha incorreta.");
 			}
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Senha incorreta.");
 		}
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
 	}
 
 
-	@PostMapping("/desloga")
-	public ResponseEntity<String> desconecta() {
-		if (Objects.nonNull(currentUser) || !currentUser.getToken().equals(currentToken)) {
-			currentUser = null;
-			currentToken = null;
-			return ResponseEntity.ok("Desconectado");
+	@GetMapping("/logout")
+	public ResponseEntity<String> logout(@RequestBody String token) {
+		Optional<Token> tokenFound = tokenRepository.findByToken(token);
+		Token token1 = tokenFound.get();
+
+		tokenRepository.delete(tokenFound.get());
+
+		for (User userFound : userRepository.findAll()){
+			if (userFound.getId() == token1.getUser().getId()){
+				userFound.setToken(null);
+				userRepository.save(userFound);
+			}
 		}
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+		return ResponseEntity.ok("Desconectado");
 	}
 
 	@GetMapping("/sent-emails")
 	public ResponseEntity<List<Email>> exibeEmailsEnviados() {
-		if (Objects.nonNull(currentUser)) {
+		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
 			CaixaDeEntradaDTO caixaDeEntradaDTO = new CaixaDeEntradaDTO(currentUser.getCaixaDeEntrada());
 			userRepository.save(currentUser);
 			return ResponseEntity.ok().body(currentUser.getCaixaDeEntrada().getEmailsEnviados());
@@ -87,7 +91,7 @@ public class UserController {
 	@GetMapping("/received-emails")
 	public ResponseEntity<List<Email>> exibeEmailsRecebidos() {
 
-		if (Objects.nonNull(currentUser)) {
+		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
 			for (User user : userRepository.findAll()) {
 				if (user.emailAddress.equals(currentUser.emailAddress)) {
 					return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsRecebidos());
@@ -101,7 +105,7 @@ public class UserController {
 	public ResponseEntity<String> escreveEmail(@RequestBody EmailDTO emailDTO) {
 		List<CaixaDeEntrada> caixasDeEntrada = new ArrayList<>();
 
-		if (Objects.nonNull(currentUser)) {
+		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
 			for (String destinatario : emailDTO.destinatarios) {
 				Optional<CaixaDeEntrada> caixaDeEntradaEncontrada = caixaDeEntradaRepository.findByEmailAddress(destinatario);
 
@@ -141,7 +145,7 @@ public class UserController {
 
 	@DeleteMapping("/delete-email-recebido/{id}")
 	public ResponseEntity<String> deletaEmailRecebido(@PathVariable long id) {
-		if (Objects.nonNull(currentUser)) {
+		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
 			for (Email email : currentUser.getCaixaDeEntrada().getEmailsRecebidos()) {
 				if (email.getId() == id) {
 					currentUser.getCaixaDeEntrada().getEmailsRecebidos().remove(email);
@@ -155,7 +159,7 @@ public class UserController {
 
 	@DeleteMapping("/delete-email-enviado/{id}")
 	public ResponseEntity<String> deletaEmailEnviado(@PathVariable long id) {
-		if (Objects.nonNull(currentUser)) {
+		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
 			for (Email email : currentUser.getCaixaDeEntrada().getEmailsEnviados()) {
 				if (email.getId() == id) {
 					currentUser.getCaixaDeEntrada().getEmailsEnviados().remove(email);

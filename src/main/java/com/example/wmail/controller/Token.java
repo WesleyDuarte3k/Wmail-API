@@ -5,10 +5,9 @@ import jakarta.persistence.*;
 @Entity
 public class Token {
 
-	public static long tokenId = 0;
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private long id;
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	public long id;
 
 	@OneToOne
 	@JoinColumn(name = "user_id")
@@ -21,7 +20,7 @@ public class Token {
 	}
 
 	public Token(User user) {
-		this.id = user.getId();
+		this.id = getId()+1;
 		this.user = user;
 		this.token = generateToken();
 	}
@@ -34,9 +33,7 @@ public class Token {
 		return id;
 	}
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+
 
 	public User getUser() {
 		return user;
