@@ -43,21 +43,35 @@ public class UserController {
 
 	@PostMapping("/login")
 	public ResponseEntity<String> login(@RequestBody User user) {
-		for (User userfound : userRepository.findAll()) {
-			if (userfound.getPassword().equals(user.getPassword())) {
-				Token token = new Token(userfound);
-				tokenRepository.save(token);
-				userfound.setToken(token.getToken());
-				currentToken = token;
-				currentUser = userfound;
-				userRepository.save(userfound);
+		Optional<User> userOptional = userRepository.findByEmailAddress(user.getEmailAddress());
 
-				return ResponseEntity.ok("Conectado. Token: " + token.getToken());
+		if (userOptional.isPresent()) {
+			User userFound = userOptional.get();
+			if (user.getPassword().equals(userFound.getPassword())) {
+				String token = userFound.getToken();
+				Optional<Token> optionalToken = tokenRepository.findByToken(token);
+				Token tokenFound = optionalToken.get();
+
+				if (tokenFound == null || tokenFound.tokenExpired()) {
+					if (tokenFound != null) {
+						tokenRepository.delete(tokenFound);
+					}
+					tokenFound = new Token(userFound);
+					tokenRepository.save(tokenFound);
+					userFound.setToken(tokenFound.getToken());
+					userRepository.save(userFound);
+				}
+
+				currentToken = tokenFound;
+				currentUser = userFound;
+
+				return ResponseEntity.ok("Conectado. Token: " + tokenFound.getToken());
 			} else {
 				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Senha incorreta.");
 			}
+		} else {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
 		}
-		return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
 	}
 
 
