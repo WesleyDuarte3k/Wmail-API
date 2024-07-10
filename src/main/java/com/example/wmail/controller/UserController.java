@@ -23,6 +23,21 @@ public class UserController {
 	public static Token currentToken;
 	public static Boolean verificationCodeChecked = false;
 
+	public static Boolean userIsLogged(String token, TokenRepository tokenRepository) {
+		Optional<Token> optionalToken = tokenRepository.findByToken(token);
+		if (optionalToken.isPresent()){
+			Token tokenFound = optionalToken.get();
+
+			if (tokenFound.tokenExpired() || !tokenFound.getToken().equals(token)){
+				return false;
+			}else {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 
 	@Autowired
 	private UserRepository userRepository;
@@ -43,29 +58,46 @@ public class UserController {
 
 	@PostMapping("/login")
 	public ResponseEntity<String> login(@RequestBody User user) {
-		Optional<User> userOptional = userRepository.findByEmailAddress(user.getEmailAddress());
+		Optional<User> userOptional = userRepository.findByName(user.getName());
 
 		if (userOptional.isPresent()) {
 			User userFound = userOptional.get();
 			if (user.getPassword().equals(userFound.getPassword())) {
-				String token = userFound.getToken();
-				Optional<Token> optionalToken = tokenRepository.findByToken(token);
-				Token tokenFound = optionalToken.get();
+				Optional<Token> tokenOptional = tokenRepository.findByToken(userFound.getToken());
+				if (tokenOptional.isPresent()) {
+					Token tokenFound = tokenOptional.get();
 
-				if (tokenFound == null || tokenFound.tokenExpired()) {
-					if (tokenFound != null) {
+					if (tokenFound.tokenExpired()) {
 						tokenRepository.delete(tokenFound);
+						Token newToken = new Token(userFound);
+						userFound.setToken(newToken.getToken());
+
+						currentUser = userFound;
+						currentToken = newToken;
+
+						userRepository.save(userFound);
+						tokenRepository.save(newToken);
+
+						return ResponseEntity.ok("Conectado. Token: " + newToken.getToken());
+					} else {
+						currentToken = tokenFound;
+						currentUser = userFound;
+
+						return ResponseEntity.ok("Conectado. Token: " + tokenFound.getToken());
 					}
-					tokenFound = new Token(userFound);
-					tokenRepository.save(tokenFound);
-					userFound.setToken(tokenFound.getToken());
+				} else {
+					Token newToken = new Token(userFound);
+					userFound.setToken(newToken.getToken());
+
+					currentUser = userFound;
+					currentToken = newToken;
+
+
 					userRepository.save(userFound);
+					tokenRepository.save(newToken);
+
+					return ResponseEntity.ok("Conectado. Token: " + newToken.getToken());
 				}
-
-				currentToken = tokenFound;
-				currentUser = userFound;
-
-				return ResponseEntity.ok("Conectado. Token: " + tokenFound.getToken());
 			} else {
 				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Senha incorreta.");
 			}
@@ -76,69 +108,75 @@ public class UserController {
 
 
 	@GetMapping("/logout")
-	public ResponseEntity<String> logout(@RequestBody String token) {
-		Optional<Token> tokenFound = tokenRepository.findByToken(token);
-		Token token1 = tokenFound.get();
+	public ResponseEntity<String> logout(@RequestHeader String token) {
+		if (userIsLogged(token, tokenRepository)){
+			currentUser.setToken("");
+			tokenRepository.delete(currentToken);
+			userRepository.save(currentUser);
 
-		tokenRepository.delete(tokenFound.get());
-
-		for (User userFound : userRepository.findAll()){
-			if (userFound.getId() == token1.getUser().getId()){
-				userFound.setToken(null);
-				userRepository.save(userFound);
-			}
+			return ResponseEntity.ok("Desconectado");
 		}
-
-		return ResponseEntity.ok("Desconectado");
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Precisa estar conectado");
 	}
 
-	@GetMapping("/sent-emails")
-	public ResponseEntity<List<Email>> exibeEmailsEnviados() {
-		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
-			CaixaDeEntradaDTO caixaDeEntradaDTO = new CaixaDeEntradaDTO(currentUser.getCaixaDeEntrada());
-			userRepository.save(currentUser);
-			return ResponseEntity.ok().body(currentUser.getCaixaDeEntrada().getEmailsEnviados());
+	@GetMapping("/displays-sent-emails")
+	public ResponseEntity<List<Email>> exibeEmailsEnviados(@RequestHeader String token) {
+		if (userIsLogged(token, tokenRepository)){
+			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
+				for (User user : userRepository.findAll()) {
+					if (user.emailAddress.equals(currentUser.emailAddress)) {
+						return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsEnviados());
+					}
+				}
+			}
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
 	}
 
 	@GetMapping("/received-emails")
-	public ResponseEntity<List<Email>> exibeEmailsRecebidos() {
-
-		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
-			for (User user : userRepository.findAll()) {
-				if (user.emailAddress.equals(currentUser.emailAddress)) {
-					return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsRecebidos());
+	public ResponseEntity<List<Email>> exibeEmailsRecebidos(@RequestHeader String token) {
+		if (userIsLogged(token, tokenRepository)){
+			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
+				for (User user : userRepository.findAll()) {
+					if (user.emailAddress.equals(currentUser.emailAddress)) {
+						return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsRecebidos());
+					}
 				}
 			}
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 	}
 
 	@PostMapping("/send-emails")
-	public ResponseEntity<String> escreveEmail(@RequestBody EmailDTO emailDTO) {
-		List<CaixaDeEntrada> caixasDeEntrada = new ArrayList<>();
+	public ResponseEntity<String> escreveEmail(@RequestBody EmailDTO emailDTO, @RequestHeader String token) {
+		if (userIsLogged(token, tokenRepository)){
+			List<CaixaDeEntrada> caixasDeEntrada = new ArrayList<>();
 
-		if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
-			for (String destinatario : emailDTO.destinatarios) {
-				Optional<CaixaDeEntrada> caixaDeEntradaEncontrada = caixaDeEntradaRepository.findByEmailAddress(destinatario);
+			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
+				for (String destinatario : emailDTO.destinatarios) {
+					Optional<CaixaDeEntrada> caixaDeEntradaEncontrada = caixaDeEntradaRepository.findByEmailAddress(destinatario);
 
-				if (caixaDeEntradaEncontrada.isPresent()) {
-					caixasDeEntrada.add(caixaDeEntradaEncontrada.get());
-				} else {
-					return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Destinatário não encontrado: " + destinatario);
+					if (caixaDeEntradaEncontrada.isPresent()) {
+						caixasDeEntrada.add(caixaDeEntradaEncontrada.get());
+					} else {
+						return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Destinatário não encontrado: " + destinatario);
+					}
 				}
-			}
-			Email email = new Email(emailDTO, caixasDeEntrada);
+				Email email = new Email(emailDTO, caixasDeEntrada);
 
-			currentUser.getCaixaDeEntrada().escreveEmail(email, caixasDeEntrada);
-			userRepository.save(currentUser);
+				currentUser.getCaixaDeEntrada().escreveEmail(email, caixasDeEntrada);
+				userRepository.save(currentUser);
 
-			for (CaixaDeEntrada caixaDeEntrada : caixasDeEntrada) {
-				caixaDeEntrada.recebe(email);
-				caixaDeEntradaRepository.save(caixaDeEntrada);
+				for (CaixaDeEntrada caixaDeEntrada : caixasDeEntrada) {
+					caixaDeEntrada.recebe(email);
+					caixaDeEntradaRepository.save(caixaDeEntrada);
+				}
+				return ResponseEntity.ok("Mensagem enviada!");
 			}
-			return ResponseEntity.ok("Mensagem enviada!");
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário não está logado. Não foi possível enviar!");
 		}
 		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário não está logado. Não foi possível enviar!");
 	}
