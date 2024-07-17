@@ -3,6 +3,8 @@ package com.example.wmail.controller;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 @Entity
 public class Token {
@@ -51,6 +53,10 @@ public class Token {
 
 	public String getToken() {
 		return token;
+	}
+
+	public void setCreatedAt(){
+		this.createdAt = LocalDateTime.now();
 	}
 
 

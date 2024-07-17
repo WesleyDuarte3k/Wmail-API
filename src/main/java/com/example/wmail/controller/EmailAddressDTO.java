@@ -1,9 +1,14 @@
 package com.example.wmail.controller;
 
+import java.util.Optional;
+
 public class EmailAddressDTO {
-	String emailAddress;
+	public String emailAddress;
+	public String emailRecovery;
 
 	public EmailAddressDTO(String emailAddress) {
 		this.emailAddress = emailAddress;
 	}
+	public EmailAddressDTO (){}
+
 }

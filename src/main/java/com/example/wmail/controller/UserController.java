@@ -25,14 +25,14 @@ public class UserController {
 
 	public static Boolean userIsLogged(String token, TokenRepository tokenRepository) {
 		Optional<Token> optionalToken = tokenRepository.findByToken(token);
-		if (optionalToken.isPresent()){
+		if (optionalToken.isPresent()) {
 			Token tokenFound = optionalToken.get();
 
-			if (tokenFound.tokenExpired() || !tokenFound.getToken().equals(token)){
+			if (tokenFound.tokenExpired() || !tokenFound.getToken().equals(token)) {
 				return false;
-			}else {
-				return true;
 			}
+			return true;
+
 		}
 
 		return false;
@@ -47,6 +47,8 @@ public class UserController {
 	private EmailRepository emailRepository;
 	@Autowired
 	private TokenRepository tokenRepository;
+	@Autowired
+	private EmailService emailService;
 
 
 	@GetMapping("")
@@ -68,17 +70,16 @@ public class UserController {
 					Token tokenFound = tokenOptional.get();
 
 					if (tokenFound.tokenExpired()) {
-						tokenRepository.delete(tokenFound);
-						Token newToken = new Token(userFound);
-						userFound.setToken(newToken.getToken());
+						tokenFound.setCreatedAt();
+						tokenRepository.save(tokenFound);
 
 						currentUser = userFound;
-						currentToken = newToken;
+						currentToken = tokenFound;
 
 						userRepository.save(userFound);
-						tokenRepository.save(newToken);
+						tokenRepository.save(tokenFound);
 
-						return ResponseEntity.ok("Conectado. Token: " + newToken.getToken());
+						return ResponseEntity.ok("Conectado. Token: " + tokenFound.getToken());
 					} else {
 						currentToken = tokenFound;
 						currentUser = userFound;
@@ -109,9 +110,8 @@ public class UserController {
 
 	@GetMapping("/logout")
 	public ResponseEntity<String> logout(@RequestHeader String token) {
-		if (userIsLogged(token, tokenRepository)){
-			currentUser.setToken("");
-			tokenRepository.delete(currentToken);
+		if (userIsLogged(token, tokenRepository)) {
+			currentToken.tokenExpired();
 			userRepository.save(currentUser);
 
 			return ResponseEntity.ok("Desconectado");
@@ -121,7 +121,7 @@ public class UserController {
 
 	@GetMapping("/displays-sent-emails")
 	public ResponseEntity<List<Email>> exibeEmailsEnviados(@RequestHeader String token) {
-		if (userIsLogged(token, tokenRepository)){
+		if (userIsLogged(token, tokenRepository)) {
 			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
 				for (User user : userRepository.findAll()) {
 					if (user.emailAddress.equals(currentUser.emailAddress)) {
@@ -137,7 +137,7 @@ public class UserController {
 
 	@GetMapping("/received-emails")
 	public ResponseEntity<List<Email>> exibeEmailsRecebidos(@RequestHeader String token) {
-		if (userIsLogged(token, tokenRepository)){
+		if (userIsLogged(token, tokenRepository)) {
 			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
 				for (User user : userRepository.findAll()) {
 					if (user.emailAddress.equals(currentUser.emailAddress)) {
@@ -150,36 +150,62 @@ public class UserController {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 	}
 
-	@PostMapping("/send-emails")
-	public ResponseEntity<String> escreveEmail(@RequestBody EmailDTO emailDTO, @RequestHeader String token) {
-		if (userIsLogged(token, tokenRepository)){
-			List<CaixaDeEntrada> caixasDeEntrada = new ArrayList<>();
 
-			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
-				for (String destinatario : emailDTO.destinatarios) {
-					Optional<CaixaDeEntrada> caixaDeEntradaEncontrada = caixaDeEntradaRepository.findByEmailAddress(destinatario);
 
-					if (caixaDeEntradaEncontrada.isPresent()) {
-						caixasDeEntrada.add(caixaDeEntradaEncontrada.get());
-					} else {
-						return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Destinatário não encontrado: " + destinatario);
-					}
-				}
-				Email email = new Email(emailDTO, caixasDeEntrada);
+	@PostMapping("/send-recovery-email")
+	public ResponseEntity<String> sendRecoveryEmail(@RequestBody EmailAddressDTO emailAddressDTO) {
+		Optional<User> optionalUser = userRepository.findByEmailAddress(emailAddressDTO.emailAddress);
 
-				currentUser.getCaixaDeEntrada().escreveEmail(email, caixasDeEntrada);
-				userRepository.save(currentUser);
+		if (optionalUser.isPresent()){
+			User userFound = optionalUser.get();
 
-				for (CaixaDeEntrada caixaDeEntrada : caixasDeEntrada) {
-					caixaDeEntrada.recebe(email);
-					caixaDeEntradaRepository.save(caixaDeEntrada);
-				}
-				return ResponseEntity.ok("Mensagem enviada!");
-			}
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário não está logado. Não foi possível enviar!");
+			userFound.generateVerificationCode();
+
+			String toEmail = emailAddressDTO.emailRecovery = userFound.recoveryEmail;
+			String subject = "Recuperação de Senha";
+			String body = "Aqui está o seu código de recuperação: " + userFound.getVerificationCode();
+
+			emailService.sendRecoveryEmail(toEmail, subject, body);
+
+			userRepository.save(userFound);
+
+			return ResponseEntity.ok("Email de recuperação enviado");
 		}
-		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário não está logado. Não foi possível enviar!");
+
+
+		return ResponseEntity.ok("Email não encontrado");
 	}
+
+//	@PostMapping("/send-emails")
+//	public ResponseEntity<String> escreveEmail(@RequestBody EmailDTO emailDTO) {
+//		if (userIsLogged(token, tokenRepository)) {
+//			List<CaixaDeEntrada> caixasDeEntrada = new ArrayList<>();
+//
+//			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
+//				for (String destinatario : emailDTO.destinatarios) {
+//					Optional<CaixaDeEntrada> caixaDeEntradaEncontrada = caixaDeEntradaRepository.findByEmailAddress(destinatario);
+//
+//					if (caixaDeEntradaEncontrada.isPresent()) {
+//						caixasDeEntrada.add(caixaDeEntradaEncontrada.get());
+//					} else {
+//						return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Destinatário não encontrado: " + destinatario);
+//					}
+//				}
+//				Email email = new Email(emailDTO, caixasDeEntrada);
+//
+//				currentUser.getCaixaDeEntrada().escreveEmail(email, caixasDeEntrada);
+//				userRepository.save(currentUser);
+//
+//				for (CaixaDeEntrada caixaDeEntrada : caixasDeEntrada) {
+//					caixaDeEntrada.recebe(email);
+//					caixaDeEntradaRepository.save(caixaDeEntrada);
+//				}
+//				return ResponseEntity.ok("Mensagem enviada!");
+//			}
+//			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário não está logado. Não foi possível enviar!");
+//		}
+//		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Usuário não está logado. Não foi possível enviar!");
+//	}
 
 
 //	@PostMapping("/responder/{id}")
@@ -260,35 +286,35 @@ public class UserController {
 	}
 
 
-	@PostMapping("/send-recovery-email")
-	public ResponseEntity<String> sendRecoveryEmail(@RequestBody EmailAddressDTO emailAddressDTO) {
-		Optional<User> userFound = userRepository.findByEmailAddress(emailAddressDTO.emailAddress);
-
-		if (userFound.isPresent()) {
-			User user = userFound.get();
-			String recoveryEmail = user.getRecoveryEmail();
-			Optional<User> destinatarioFound = userRepository.findByEmailAddress(recoveryEmail);
-
-			if (destinatarioFound.isPresent()) {
-				user.generateVerificationCode();
-				userRepository.save(user);
-				currentUser = user;
-
-				Email emailRecovery = new Email();
-				emailRecovery.setConteudo("Seu código de verificação: " + user.getVerificationCode());
-				emailRecovery.adicionaDestinatario(userRepository.findAll(), user.getRecoveryEmail());
-				destinatarioFound.get().getCaixaDeEntrada().getEmailsRecebidos().add(emailRecovery);
-				userRepository.save(destinatarioFound.get());
-				userRepository.save(user);
-
-
-				return ResponseEntity.ok("Email de recuperação enviado");
-			}
-			return ResponseEntity.ok("Email de recuperação não encontrado");
-		}
-
-		return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado");
-	}
+//	@PostMapping("/send-recovery-email")
+//	public ResponseEntity<String> sendRecoveryEmailInWmail(@RequestBody EmailAddressDTO emailAddressDTO) {
+//		Optional<User> userFound = userRepository.findByEmailAddress(emailAddressDTO.emailAddress);
+//
+//		if (userFound.isPresent()) {
+//			User user = userFound.get();
+//			String recoveryEmail = user.getRecoveryEmail();
+//			Optional<User> destinatarioFound = userRepository.findByEmailAddress(recoveryEmail);
+//
+//			if (destinatarioFound.isPresent()) {
+//				user.generateVerificationCode();
+//				userRepository.save(user);
+//				currentUser = user;
+//
+//				Email emailRecovery = new Email();
+//				emailRecovery.setConteudo("Seu código de verificação: " + user.getVerificationCode());
+//				emailRecovery.adicionaDestinatario(userRepository.findAll(), user.getRecoveryEmail());
+//				destinatarioFound.get().getCaixaDeEntrada().getEmailsRecebidos().add(emailRecovery);
+//				userRepository.save(destinatarioFound.get());
+//				userRepository.save(user);
+//
+//
+//				return ResponseEntity.ok("Email de recuperação enviado");
+//			}
+//			return ResponseEntity.ok("Email de recuperação não encontrado");
+//		}
+//
+//		return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado");
+//	}
 
 	@PostMapping("/check-verification-code")
 	public ResponseEntity<String> checkVerificationCode(@RequestBody String verificationCode) {
