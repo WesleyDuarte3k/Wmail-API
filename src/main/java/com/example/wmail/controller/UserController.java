@@ -120,13 +120,14 @@ public class UserController {
 	}
 
 	@GetMapping("/displays-sent-emails")
-	public ResponseEntity<List<Email>> exibeEmailsEnviados(@RequestHeader String token) {
-		if (userIsLogged(token, tokenRepository)) {
-			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
-				for (User user : userRepository.findAll()) {
-					if (user.emailAddress.equals(currentUser.emailAddress)) {
-						return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsEnviados());
-					}
+	public ResponseEntity<List<Email>> exibeEmailsEnviados(@RequestHeader String token) throws UnsupportedEncodingException {
+		EncryptedToken encryptedToken = new EncryptedToken(token);
+
+		if (!encryptedToken.isExpired()) {
+			User userFound = userRepository.findById(encryptedToken.userId).get();
+			for (User user : userRepository.findAll()) {
+				if (user.emailAddress.equals(userFound.getEmailAddress())) {
+					return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsEnviados());
 				}
 			}
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
