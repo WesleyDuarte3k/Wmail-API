@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.UnsupportedEncodingException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -20,7 +22,7 @@ public class UserController {
 	public static ArrayList<User> users = new ArrayList<>();
 	public static User currentUser;
 	public static User usuarioAlterado;
-	public static Token currentToken;
+	public static String currentToken;
 	public static Boolean verificationCodeChecked = false;
 
 	public static Boolean userIsLogged(String token, TokenRepository tokenRepository) {
@@ -59,64 +61,23 @@ public class UserController {
 
 
 	@PostMapping("/login")
-	public ResponseEntity<String> login(@RequestBody User user) {
+	public ResponseEntity<String> login(@RequestBody User user) throws UnsupportedEncodingException {
 		Optional<User> userOptional = userRepository.findByName(user.getName());
 
 		if (userOptional.isPresent()) {
 			User userFound = userOptional.get();
 			if (user.getPassword().equals(userFound.getPassword())) {
-				Optional<Token> tokenOptional = tokenRepository.findByToken(userFound.getToken());
-				if (tokenOptional.isPresent()) {
-					Token tokenFound = tokenOptional.get();
+				EncryptedToken encryptedToken = new EncryptedToken(userFound, LocalDateTime.now());
 
-					if (tokenFound.tokenExpired()) {
-						tokenFound.setCreatedAt();
-						tokenRepository.save(tokenFound);
+				String tokenCodificado = encryptedToken.encodeToken();
+				currentToken = tokenCodificado;
+				currentUser = userFound;
 
-						currentUser = userFound;
-						currentToken = tokenFound;
-
-						userRepository.save(userFound);
-						tokenRepository.save(tokenFound);
-
-						return ResponseEntity.ok("Conectado. Token: " + tokenFound.getToken());
-					} else {
-						currentToken = tokenFound;
-						currentUser = userFound;
-
-						return ResponseEntity.ok("Conectado. Token: " + tokenFound.getToken());
-					}
-				} else {
-					Token newToken = new Token(userFound);
-					userFound.setToken(newToken.getToken());
-
-					currentUser = userFound;
-					currentToken = newToken;
-
-
-					userRepository.save(userFound);
-					tokenRepository.save(newToken);
-
-					return ResponseEntity.ok("Conectado. Token: " + newToken.getToken());
-				}
-			} else {
-				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Senha incorreta.");
+				return ResponseEntity.ok("Conectado. Token: " + tokenCodificado);
 			}
-		} else {
-			return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Senha incorreta.");
 		}
-	}
-
-
-	@GetMapping("/logout")
-	public ResponseEntity<String> logout(@RequestHeader String token) {
-		if (userIsLogged(token, tokenRepository)) {
-			currentToken.tokenExpired();
-			userRepository.save(currentUser);
-
-			return ResponseEntity.ok("Desconectado");
-		}
-		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Precisa estar conectado");
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
 	}
 
 	@GetMapping("/displays-sent-emails")
@@ -124,40 +85,39 @@ public class UserController {
 		EncryptedToken encryptedToken = new EncryptedToken(token);
 
 		if (!encryptedToken.isExpired()) {
-			User userFound = userRepository.findById(encryptedToken.userId).get();
-			for (User user : userRepository.findAll()) {
-				if (user.emailAddress.equals(userFound.getEmailAddress())) {
-					return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsEnviados());
-				}
+			Optional<User> userOptional = userRepository.findById(encryptedToken.getUserId());
+
+			if (userOptional.isPresent()) {
+				User userFound = userOptional.get();
+				return ResponseEntity.ok(userFound.getCaixaDeEntrada().getEmailsEnviados());
 			}
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-
 	}
 
 	@GetMapping("/received-emails")
-	public ResponseEntity<List<Email>> exibeEmailsRecebidos(@RequestHeader String token) {
-		if (userIsLogged(token, tokenRepository)) {
-			if (Objects.nonNull(currentUser) && Objects.nonNull(currentToken)) {
-				for (User user : userRepository.findAll()) {
-					if (user.emailAddress.equals(currentUser.emailAddress)) {
-						return ResponseEntity.ok(user.getCaixaDeEntrada().getEmailsRecebidos());
-					}
-				}
+	public ResponseEntity<List<Email>> exibeEmailsRecebidos(@RequestHeader String token) throws UnsupportedEncodingException {
+		EncryptedToken encryptedToken = new EncryptedToken(token);
+
+		if (!encryptedToken.isExpired()) {
+			Optional<User> userOptional = userRepository.findById(encryptedToken.getUserId());
+
+			if (userOptional.isPresent()) {
+				User userFound = userOptional.get();
+				return ResponseEntity.ok(userFound.getCaixaDeEntrada().getEmailsRecebidos());
 			}
-			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 	}
-
 
 
 	@PostMapping("/send-recovery-email")
 	public ResponseEntity<String> sendRecoveryEmail(@RequestBody EmailAddressDTO emailAddressDTO) {
 		Optional<User> optionalUser = userRepository.findByEmailAddress(emailAddressDTO.emailAddress);
 
-		if (optionalUser.isPresent()){
+		if (optionalUser.isPresent()) {
 			User userFound = optionalUser.get();
 
 			userFound.generateVerificationCode();
@@ -339,4 +299,5 @@ public class UserController {
 		}
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Não autorizado para alterar a senha");
 	}
+
 }
